@@ -101,6 +101,8 @@ pub struct TranscriptConfig {
     pub model: String,
     #[serde(rename = "apiKey")]
     pub api_key: Option<String>,
+    #[serde(rename = "endpoint")]
+    pub endpoint: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -109,6 +111,8 @@ pub struct SaveTranscriptConfigRequest {
     pub model: String,
     #[serde(rename = "apiKey")]
     pub api_key: Option<String>,
+    #[serde(rename = "endpoint")]
+    pub endpoint: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -619,6 +623,7 @@ pub async fn api_get_transcript_config<R: Runtime>(
                         provider: config.provider,
                         model: config.model,
                         api_key,
+                        endpoint: config.cloud_endpoint,
                     }))
                 }
                 Err(e) => {
@@ -637,6 +642,7 @@ pub async fn api_get_transcript_config<R: Runtime>(
                 provider: "parakeet".to_string(),
                 model: crate::config::DEFAULT_PARAKEET_MODEL.to_string(),
                 api_key: None,
+                endpoint: None,
             }))
         }
         Err(e) => {
@@ -653,6 +659,7 @@ pub async fn api_save_transcript_config<R: Runtime>(
     provider: String,
     model: String,
     api_key: Option<String>,
+    endpoint: Option<String>,
     _auth_token: Option<String>,
 ) -> Result<serde_json::Value, String> {
     log_info!(
@@ -661,19 +668,16 @@ pub async fn api_save_transcript_config<R: Runtime>(
     );
     let pool = state.db_manager.pool();
 
-    if let Err(e) = SettingsRepository::save_transcript_config(pool, &provider, &model).await {
+    if let Err(e) = SettingsRepository::save_transcript_config(pool, &provider, &model, endpoint.as_deref()).await {
         log_error!("Failed to save transcript config: {}", e);
         return Err(e.to_string());
     }
 
     if let Some(key) = api_key {
-        if !key.is_empty() {
-            log_info!("API key provided, saving for transcript provider...");
-            if let Err(e) = SettingsRepository::save_transcript_api_key(pool, &provider, &key).await
-            {
-                log_error!("Failed to save transcript API key: {}", e);
-                return Err(e.to_string());
-            }
+        log_info!("API key parameter provided for transcript provider '{}', saving...", &provider);
+        if let Err(e) = SettingsRepository::save_transcript_api_key(pool, &provider, &key).await {
+            log_error!("Failed to save transcript API key: {}", e);
+            return Err(e.to_string());
         }
     }
 
