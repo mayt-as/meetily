@@ -39,14 +39,19 @@ impl CloudWhisperProvider {
     /// Normalizes endpoint URL to ensure it points to /audio/transcriptions
     fn get_full_url(&self) -> String {
         let trimmed = self.endpoint_url.trim().trim_end_matches('/');
-        if trimmed.ends_with("/audio/transcriptions") {
-            trimmed.to_string()
-        } else if trimmed.ends_with("/audio") {
-            format!("{}/transcriptions", trimmed)
-        } else if trimmed.ends_with("/v1") {
-            format!("{}/audio/transcriptions", trimmed)
+        let base_url = if trimmed.is_empty() {
+            "https://api.openai.com/v1"
         } else {
-            format!("{}/audio/transcriptions", trimmed)
+            trimmed
+        };
+        if base_url.ends_with("/audio/transcriptions") {
+            base_url.to_string()
+        } else if base_url.ends_with("/audio") {
+            format!("{}/transcriptions", base_url)
+        } else if base_url.ends_with("/v1") {
+            format!("{}/audio/transcriptions", base_url)
+        } else {
+            format!("{}/audio/transcriptions", base_url)
         }
     }
 }

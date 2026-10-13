@@ -21,6 +21,18 @@ const PROVIDER_COMMANDS: Record<string, ProviderCommands> = {
   },
 };
 
+const CLOUD_PROVIDERS = new Set([
+  'openai',
+  'groq',
+  'cloudWhisper',
+  'deepgram',
+  'elevenLabs',
+]);
+
+export function isCloudProvider(provider: string): boolean {
+  return CLOUD_PROVIDERS.has(provider);
+}
+
 export function getProviderCommands(provider: string): ProviderCommands | null {
   return PROVIDER_COMMANDS[provider] ?? null;
 }

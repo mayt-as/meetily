@@ -135,7 +135,17 @@ pub async fn validate_transcription_model_ready<R: Runtime>(app: &AppHandle<R>) 
                 }
             }
         }
-        "openai" | "groq" | "cloudWhisper" | "deepgram" | "elevenLabs" => {
+        "openai" | "groq" => {
+            info!("🔍 Validating cloud transcription configuration for provider: {}", config.provider);
+            if config.model.trim().is_empty() {
+                return Err(format!("Model name is required for provider '{}'. Please configure it in Settings.", config.provider));
+            }
+            if config.api_key.as_ref().map_or(true, |k| k.trim().is_empty()) {
+                return Err(format!("API key is required for provider '{}'. Please configure your API key in Settings.", config.provider));
+            }
+            Ok(())
+        }
+        "cloudWhisper" | "deepgram" | "elevenLabs" => {
             info!("🔍 Validating cloud transcription configuration for provider: {}", config.provider);
             if config.model.trim().is_empty() {
                 return Err(format!("Model name is required for cloud provider '{}'. Please configure it in Settings.", config.provider));
@@ -223,9 +233,9 @@ pub async fn get_or_init_transcription_engine<R: Runtime>(
             info!("☁️ Initializing Cloud STT transcription engine for provider: {}", config.provider);
 
             let endpoint_url = match config.provider.as_str() {
-                "openai" => config.endpoint.unwrap_or_else(|| "https://api.openai.com/v1".to_string()),
-                "groq" => config.endpoint.unwrap_or_else(|| "https://api.groq.com/openai/v1".to_string()),
-                _ => config.endpoint.unwrap_or_else(|| "https://api.openai.com/v1".to_string()),
+                "openai" => config.endpoint.filter(|e| !e.trim().is_empty()).unwrap_or_else(|| "https://api.openai.com/v1".to_string()),
+                "groq" => config.endpoint.filter(|e| !e.trim().is_empty()).unwrap_or_else(|| "https://api.groq.com/openai/v1".to_string()),
+                _ => config.endpoint.filter(|e| !e.trim().is_empty()).unwrap_or_else(|| "https://api.openai.com/v1".to_string()),
             };
 
             let provider = Arc::new(super::cloud_provider::CloudWhisperProvider::new(
