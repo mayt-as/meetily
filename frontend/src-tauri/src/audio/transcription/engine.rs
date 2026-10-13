@@ -135,10 +135,17 @@ pub async fn validate_transcription_model_ready<R: Runtime>(app: &AppHandle<R>) 
                 }
             }
         }
+        "openai" | "groq" | "cloudWhisper" | "deepgram" | "elevenLabs" => {
+            info!("🔍 Validating cloud transcription configuration for provider: {}", config.provider);
+            if config.model.trim().is_empty() {
+                return Err(format!("Model name is required for cloud provider '{}'. Please configure it in Settings.", config.provider));
+            }
+            Ok(())
+        }
         other => {
-            warn!("❌ Unsupported transcription provider for local recording: {}", other);
+            warn!("❌ Unsupported transcription provider: {}", other);
             Err(format!(
-                "Provider '{}' is not supported for local transcription. Please select 'localWhisper' or 'parakeet'.",
+                "Provider '{}' is not supported for transcription.",
                 other
             ))
         }
@@ -212,8 +219,25 @@ pub async fn get_or_init_transcription_engine<R: Runtime>(
                 }
             }
         }
+        "openai" | "groq" | "cloudWhisper" | "deepgram" | "elevenLabs" => {
+            info!("☁️ Initializing Cloud STT transcription engine for provider: {}", config.provider);
+
+            let endpoint_url = match config.provider.as_str() {
+                "openai" => config.endpoint.unwrap_or_else(|| "https://api.openai.com/v1".to_string()),
+                "groq" => config.endpoint.unwrap_or_else(|| "https://api.groq.com/openai/v1".to_string()),
+                _ => config.endpoint.unwrap_or_else(|| "https://api.openai.com/v1".to_string()),
+            };
+
+            let provider = Arc::new(super::cloud_provider::CloudWhisperProvider::new(
+                endpoint_url,
+                config.api_key,
+                config.model,
+            ));
+
+            Ok(TranscriptionEngine::Provider(provider))
+        }
         "localWhisper" | _ => {
-            info!("🎤 Initializing Whisper transcription engine");
+            info!("🎤 Initializing Local Whisper transcription engine");
             let whisper_engine = get_or_init_whisper(app).await?;
             Ok(TranscriptionEngine::Whisper(whisper_engine))
         }
